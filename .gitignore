@@ -1,4 +1,4 @@
+node_modules/
 .venv/
-__pycache__/
 sortie/
 .DS_Store

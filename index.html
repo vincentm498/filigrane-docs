@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Filigrane de documents</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232b59c3'/%3E%3Cpath d='M5 21c4-6 6 6 11 0s6 6 11 0' stroke='white' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
   :root {
     --bg: #f5f6f8; --carte: #fff; --texte: #1d2330; --discret: #667085;
@@ -13,6 +14,7 @@
     :root { --bg: #14171d; --carte: #1d222b; --texte: #e8ebf1; --discret: #98a2b3; --bord: #323947; --accent: #6b93f0; --accent-fonce: #88a8f5; }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--texte); font: 15px/1.5 system-ui, sans-serif; }
   main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
   h1 { font-size: 22px; margin: 0 0 4px; }
@@ -122,6 +124,12 @@
         <div id="selection"><div id="tige"></div><div id="poignee-rot"></div><div id="poignee"></div></div>
         <div id="cadre"></div>
       </div>
+      <div class="barre" id="barre-pages" hidden>
+        <button id="page-prec" aria-label="Page précédente">◀</button>
+        <span id="page-num"></span>
+        <button id="page-suiv" aria-label="Page suivante">▶</button>
+        <span>Les zones et l’orientation s’appliquent à toutes les pages.</span>
+      </div>
       <div class="barre" id="barre-rotation" hidden>
         <span>Orientation :</span>
         <button id="rot-g" title="Tourner de 90° vers la gauche">⟲ 90°</button>
@@ -142,9 +150,9 @@
   </div>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const ANGLE = 30;
@@ -153,7 +161,7 @@ const TYPES = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
 const etat = { fichiers: [], sel: -1, masqueSel: -1 };
 
 if (window.pdfjsLib) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
 }
 
 function creerCanvas(w, h) {
@@ -166,7 +174,7 @@ function creerCanvas(w, h) {
 
 async function lirePages(fichier) {
   if (fichier.type === 'application/pdf' || /\.pdf$/i.test(fichier.name)) {
-    if (!window.pdfjsLib) throw new Error('lecteur PDF indisponible (connexion nécessaire)');
+    if (!window.pdfjsLib) throw new Error('lecteur PDF indisponible');
     const pdf = await pdfjsLib.getDocument({ data: await fichier.arrayBuffer() }).promise;
     const pages = [];
     for (let i = 1; i <= pdf.numPages; i++) {
@@ -189,7 +197,7 @@ async function ajouter(liste) {
   for (const f of liste) {
     try {
       const pages = await lirePages(f);
-      etat.fichiers.push({ nom: f.name.replace(/\.[^.]+$/, ''), pages, masques: [], angle: 0, cache: null });
+      etat.fichiers.push({ nom: f.name.replace(/\.[^.]+$/, ''), pages, masques: [], angle: 0, cache: null, page: 0 });
     } catch (e) {
       $('#message').textContent = `Impossible de lire « ${f.name} » : ${e.message}`;
     }
@@ -371,14 +379,18 @@ function dessinerApercu() {
   $('#scene').hidden = !f;
   $('#barre-masque').hidden = !f;
   $('#barre-rotation').hidden = !f;
+  $('#barre-pages').hidden = !f || f.pages.length < 2;
   if (!f) return;
   if (etat.masqueSel >= f.masques.length) etat.masqueSel = -1;
   if (document.activeElement !== $('#angle-img')) $('#angle-img').value = f.angle;
   const largeur = Math.min(+$('#largeur').value, 900);
-  const c = composer(pagesTournees(f)[0], f.masques, largeur, texteFiligrane(), +$('#opacite').value);
+  const c = composer(pagesTournees(f)[f.page], f.masques, largeur, texteFiligrane(), +$('#opacite').value);
   const cible = $('#apercu');
   cible.width = c.width; cible.height = c.height;
   cible.getContext('2d').drawImage(c, 0, 0);
+  $('#page-num').textContent = `Page ${f.page + 1} / ${f.pages.length}`;
+  $('#page-prec').disabled = f.page === 0;
+  $('#page-suiv').disabled = f.page === f.pages.length - 1;
   $('#nb-masques').textContent = f.masques.length ? `${f.masques.length} zone(s)` : '';
   majSelection();
 }
@@ -535,6 +547,16 @@ function dessinerApercu() {
     dessinerApercu();
   });
 
+  // pages
+  const aller = (delta) => {
+    const f = fichier();
+    if (!f) return;
+    f.page = Math.min(f.pages.length - 1, Math.max(0, f.page + delta));
+    dessinerApercu();
+  };
+  $('#page-prec').addEventListener('click', () => aller(-1));
+  $('#page-suiv').addEventListener('click', () => aller(1));
+
   // orientation
   $('#rot-g').addEventListener('click', () => fichier() && reglerAngle(fichier(), fichier().angle - 90));
   $('#rot-d').addEventListener('click', () => fichier() && reglerAngle(fichier(), fichier().angle + 90));
@@ -551,6 +573,17 @@ function dessinerApercu() {
 /* ---------- génération ---------- */
 
 let sortiesCourantes = [];
+
+// deux fichiers de même nom ne doivent pas s'écraser dans la liste ni dans le ZIP
+function nomUnique(nom, utilises) {
+  let candidat = nom;
+  const point = nom.lastIndexOf('.');
+  const base = point > 0 ? nom.slice(0, point) : nom;
+  const ext = point > 0 ? nom.slice(point) : '';
+  for (let n = 2; utilises.has(candidat); n++) candidat = `${base} (${n})${ext}`;
+  utilises.add(candidat);
+  return candidat;
+}
 
 const versBlob =(canvas, type, qualite) => new Promise((ok) => canvas.toBlob(ok, type, qualite));
 
@@ -580,6 +613,7 @@ async function generer() {
   ul.querySelectorAll('a').forEach((a) => URL.revokeObjectURL(a.href));
   ul.innerHTML = '';
   sortiesCourantes = [];
+  const noms = new Set();
   const format = $('#format').value;
   const qualite = +$('#qualite').value / 100;
   const texte = texteFiligrane();
@@ -596,6 +630,7 @@ async function generer() {
         }
       }
       for (const s of sorties) {
+        s.nom = nomUnique(s.nom, noms);
         sortiesCourantes.push(s);
         const a = document.createElement('a');
         a.href = URL.createObjectURL(s.blob);
@@ -629,7 +664,7 @@ for (const id of ['destinataire', 'motif', 'date', 'opacite', 'largeur']) {
 for (const id of ['qualite', 'format']) $('#' + id).addEventListener('input', majValeurs);
 $('#generer').addEventListener('click', generer);
 $('#tout').addEventListener('click', async () => {
-  if (!window.JSZip) { $('#message').textContent = 'ZIP indisponible (connexion nécessaire) : téléchargez les fichiers un par un.'; return; }
+  if (!window.JSZip) { $('#message').textContent = 'ZIP indisponible : téléchargez les fichiers un par un.'; return; }
   const zip = new JSZip();
   for (const s of sortiesCourantes) zip.file(s.nom, s.blob);
   // les images sont déjà compressées : on stocke sans recompresser

@@ -2,49 +2,32 @@
 
 **[Ouvrir la page en ligne](https://vincentm498.github.io/filigrane-docs/)** — rien à installer, tout se passe dans votre navigateur.
 
+![Aperçu de la page avec un document fictif](docs/apercu.png)
+
 Protège la copie d'un document (pièce d'identité, diplôme, etc.) avant envoi ou publication.
 
-Pour chaque fichier, l'outil :
+Pour chaque fichier, la page :
 
-1. masque les zones indiquées (aplat noir) ;
-2. applique un filigrane en vagues, en diagonale, répété sur toute la surface :
+1. corrige l'orientation de l'image si besoin ;
+2. masque les zones indiquées (aplat noir, irréversible dans le fichier exporté) ;
+3. applique un filigrane en vagues, en diagonale, répété sur toute la surface :
    « Destiné à *destinataire* – pour *motif* – le *date* » ;
-3. supprime les métadonnées (EXIF, etc.) ;
-4. exporte dans le format choisi, en résolution réduite.
+4. supprime les métadonnées (EXIF, etc.) : l'image est redessinée pixel par pixel ;
+5. exporte en JPG, PNG, WEBP ou PDF, en résolution réduite.
 
-Deux façons de l'utiliser, au résultat équivalent :
-
-| | Page web (`index.html`) | Script (`filigrane.py`) |
-|---|---|---|
-| Installation | aucune | Python + dépendances |
-| Zones à masquer | tracées à la souris, déplaçables | coordonnées en pixels |
-| Entrées | images lisibles par le navigateur, PDF | images (dont HEIC, TIFF), PDF |
-| Sorties | JPG, PNG, WEBP, PDF | JPG, PNG, WEBP, PDF |
-| Correction d'orientation | oui, en degrés | non (`--angle` règle le filigrane) |
-| Plusieurs fichiers | oui, téléchargement en ZIP | oui, en ligne de commande |
-
-> Un filigrane dissuade et permet de prouver l'origine d'une copie, mais il n'empêche
-> pas l'OCR ni la capture d'écran. Pour les informations sensibles inutiles au
+> **Confidentialité.** Aucun fichier n'est envoyé : tout est traité dans le navigateur, et
+> la page ne charge aucun script externe (les bibliothèques sont dans [`vendor/`](vendor/)).
+> Un test automatique vérifie qu'elle n'émet aucune requête vers l'extérieur.
+>
+> **Limite.** Un filigrane dissuade et permet de prouver l'origine d'une copie, mais il
+> n'empêche pas l'OCR ni la capture d'écran. Pour les informations inutiles au
 > destinataire (numéro de carte, QR code, date de naissance…), utilisez le masquage.
 
----
-
-## Page web
-
-### Installation
-
-Aucune. Ouvrez `index.html` dans un navigateur (double-clic).
-
-Une connexion internet est nécessaire : la page charge pdf.js (lecture des PDF),
-jsPDF (sortie PDF) et JSZip (téléchargement groupé) depuis un CDN. Les images
-seules fonctionnent sans ces bibliothèques, sauf le ZIP.
-
-Aucun fichier n'est envoyé : tout est traité dans le navigateur.
-
-### Utilisation
+## Utilisation
 
 1. **Fichiers** : déposez vos images ou PDF dans la zone prévue, ou cliquez pour les
-   choisir. Cliquez sur un fichier de la liste pour le voir dans l'aperçu.
+   choisir. Cliquez sur un fichier de la liste pour le voir dans l'aperçu. Pour un PDF de
+   plusieurs pages, les boutons ◀ ▶ parcourent les pages.
 2. **Filigrane** : renseignez le destinataire et le motif (obligatoires), vérifiez la
    date et réglez l'opacité. L'aperçu se met à jour en direct.
 3. **Orientation (facultatif)** : sous l'aperçu, les boutons ⟲ 90° et ⟳ 90° tournent
@@ -58,95 +41,58 @@ Aucun fichier n'est envoyé : tout est traité dans le navigateur.
    bas-droit pour la redimensionner, ou la poignée ronde au-dessus pour la faire
    tourner (Maj enfoncée : par pas de 15°). Le champ « Angle de la zone » permet de
    saisir l'angle exact en degrés. « Supprimer la zone » (ou la touche Suppr) retire
-   la zone sélectionnée, « Tout effacer » les retire toutes. Les zones sont propres à chaque
-   fichier et s'appliquent à toutes ses pages. Réglez l'orientation **avant** de tracer
-   les zones : si vous tournez l'image ensuite, les zones restent à la même position
-   à l'écran et il faut les replacer.
+   la zone sélectionnée, « Tout effacer » les retire toutes. Les zones sont propres à
+   chaque fichier et s'appliquent à toutes ses pages. Réglez l'orientation **avant** de
+   tracer les zones : si vous tournez l'image ensuite, les zones restent à la même
+   position à l'écran et il faut les replacer.
 5. **Sortie** : choisissez le format, la qualité (JPG/WEBP) et la largeur maximale,
    puis cliquez sur **Générer**.
 6. **Téléchargement** : un lien apparaît par fichier généré. S'il y en a plusieurs,
-   « Tout télécharger (.zip) » les regroupe dans une seule archive.
+   « Tout télécharger (.zip) » les regroupe dans une seule archive. Deux fichiers de
+   même nom sont numérotés (`carte_protege.jpg`, `carte_protege (2).jpg`).
 
 ### Limites
 
 - Les formats HEIC et TIFF ne s'ouvrent que si le navigateur sait les lire (Safari
-  oui, Chrome et Firefox non). Utilisez alors le script.
+  oui, Chrome et Firefox non). Convertissez-les d'abord en JPG ou PNG.
 - L'angle du filigrane est fixé à 30°.
-- Un PDF est rendu à 150 dpi, une page par image.
+- Un PDF est rendu à 150 dpi, une page par image : le texte du PDF d'origine n'est pas
+  conservé, ce qui est voulu.
 
----
+## Utiliser en local
 
-## Script `filigrane.py`
-
-### Installation
-
-Prérequis : Python 3 (testé avec 3.12). Les commandes ci-dessous sont celles de macOS et Linux.
-
-```bash
-cd filigrane
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-```
-
-Dépendances (`requirements.txt`) : `Pillow` (images), `pymupdf` (lecture des PDF),
-`pillow-heif` (lecture du HEIC, facultatif).
-
-### Utilisation
+Ouvrez `index.html` dans un navigateur (double-clic) : la page fonctionne aussi hors
+ligne. Si votre navigateur bloque la lecture des PDF depuis un fichier local, servez le
+dossier avec n'importe quel serveur statique, par exemple :
 
 ```bash
-.venv/bin/python filigrane.py FICHIER [FICHIER ...] -d DESTINATAIRE -m MOTIF [options]
+python3 -m http.server 8000
 ```
 
-Exemple :
+puis ouvrez <http://localhost:8000>.
+
+## Développement
+
+Prérequis : Node.js 20 ou plus récent.
 
 ```bash
-.venv/bin/python filigrane.py carte.jpg diplome.pdf \
-    -f jpg -d "Poney club des Ulis" -m "publication sur le site web" \
-    --masque 860,0,340,80 -o sortie
+npm install
+npx playwright install chromium   # une fois ; ou PLAYWRIGHT_CHANNEL=chrome pour utiliser Chrome
+npm test                          # test de fumée dans un vrai navigateur
+node tests/capture.mjs            # régénère docs/apercu.png
 ```
 
-Les fichiers protégés sont écrits dans le dossier `sortie` (créé si besoin) sous le
-nom `<nom d'origine>_protege.<extension>`. Un PDF de plusieurs pages donne un fichier
-par page (`_p1`, `_p2`…) sauf en sortie PDF. Les originaux ne sont jamais modifiés.
+Le test (`tests/smoke.mjs`) charge des images et un PDF de 2 pages, vérifie la navigation,
+la rotation, le tracé d'une zone, les noms uniques, les sorties JPG et PDF, le ZIP, et
+qu'il n'y a ni erreur dans la console ni requête externe.
 
-### Options
+### Déploiement
 
-| Option | Rôle | Défaut |
-|---|---|---|
-| `-f`, `--format` | format de sortie : `jpg`, `png`, `webp`, `pdf` | `jpg` |
-| `-d`, `--destinataire` | « Destiné à … » | — |
-| `-m`, `--motif` | « … pour … » | — |
-| `-t`, `--texte` | texte complet du filigrane (remplace `-d`, `-m` et la date) | — |
-| `--masque X,Y,L,H` | zone à masquer, en pixels de l'original ; répétable | aucune |
-| `-o`, `--sortie` | dossier de sortie | `./sortie` |
-| `-q`, `--qualite` | qualité JPG/WEBP, 1 à 95 | 70 |
-| `--largeur-max` | largeur maximale en pixels, `0` pour ne pas redimensionner | 1600 |
-| `--dpi` | résolution de rendu des PDF | 150 |
-| `--opacite` | opacité du filigrane, 0 à 255 | 115 |
-| `--angle` | angle du filigrane en degrés | 30 |
-
-`-d` et `-m` vont ensemble ; à défaut, indiquez `-t`. La liste complète s'affiche avec
-`--help`.
-
-### Repérer les coordonnées d'un masque
-
-`--masque X,Y,L,H` désigne le coin supérieur gauche (X, Y) puis la largeur L et la
-hauteur H, en pixels de l'image d'origine. Pour les repérer sans calcul, tracez la zone
-dans la page web : l'aperçu l'affiche immédiatement.
-
----
-
-## Dépannage
-
-- **Fichiers `.part` après un téléchargement groupé (page web)** : utilisez le bouton
-  « Tout télécharger (.zip) » plutôt que de lancer plusieurs téléchargements à la suite.
-- **« lecteur PDF indisponible » (page web)** : pas de connexion, le CDN n'a pas pu
-  charger pdf.js.
-- **`ModuleNotFoundError: PIL` ou `pymupdf` (script)** : lancez le script avec
-  `.venv/bin/python`, pas avec le Python du système.
-
----
+Le workflow [`.github/workflows/pages.yml`](.github/workflows/pages.yml) lance le test sur
+chaque pull request et sur `main`. Sur `main`, si le test passe, il publie `index.html` et
+`vendor/` sur GitHub Pages. La branche `main` est protégée : toute modification passe par
+une pull request.
 
 ## Licence
 
-[MIT](LICENSE)
+[MIT](LICENSE). Les bibliothèques de [`vendor/`](vendor/README.md) gardent leur propre licence.
