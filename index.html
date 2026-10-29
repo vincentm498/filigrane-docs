@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filigrane de documents</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --carte: #fff; --texte: #1d2330; --discret: #667085;
+    --bord: #d9dde5; --accent: #2b59c3; --accent-fonce: #1f449a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14171d; --carte: #1d222b; --texte: #e8ebf1; --discret: #98a2b3; --bord: #323947; --accent: #6b93f0; --accent-fonce: #88a8f5; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--texte); font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sous-titre { color: var(--discret); margin: 0 0 20px; }
+  .grille { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 820px) { .grille { grid-template-columns: 1fr; } }
+  .carte { background: var(--carte); border: 1px solid var(--bord); border-radius: 10px; padding: 16px; }
+  .carte + .carte { margin-top: 16px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--discret); margin: 0 0 12px; }
+  label { display: block; margin-bottom: 12px; font-weight: 500; }
+  label small { font-weight: 400; color: var(--discret); }
+  input[type=text], input[type=date], select {
+    width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; color: inherit;
+    background: var(--bg); border: 1px solid var(--bord); border-radius: 6px;
+  }
+  input[type=range] { width: 100%; margin-top: 4px; }
+  .rang { display: flex; justify-content: space-between; }
+  button { font: inherit; cursor: pointer; border-radius: 6px; padding: 8px 14px; border: 1px solid var(--bord); background: var(--carte); color: inherit; }
+  button.principal { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; width: 100%; padding: 10px; }
+  button.principal:hover { background: var(--accent-fonce); border-color: var(--accent-fonce); }
+  button:disabled { opacity: .5; cursor: default; }
+  #depot { border: 2px dashed var(--bord); border-radius: 10px; padding: 22px; text-align: center; color: var(--discret); cursor: pointer; }
+  #depot.survol { border-color: var(--accent); color: var(--accent); }
+  #fichiers { list-style: none; margin: 12px 0 0; padding: 0; }
+  #fichiers li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+  #fichiers li.actif { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  #fichiers .nom { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fichiers .info { color: var(--discret); font-size: 13px; }
+  #fichiers button { padding: 2px 8px; }
+  #scene { position: relative; line-height: 0; background: repeating-conic-gradient(#0000 0 25%, #8882 0 50%) 0 0 / 16px 16px; border-radius: 6px; overflow: hidden; user-select: none; touch-action: none; cursor: crosshair; }
+  #apercu { width: 100%; height: auto; display: block; }
+  #selection { position: absolute; border: 2px dashed var(--accent); display: none; pointer-events: none; }
+  #tige { position: absolute; left: calc(50% - 1px); top: -26px; width: 2px; height: 26px; background: var(--accent); }
+  #poignee-rot { position: absolute; left: calc(50% - 7px); top: -38px; width: 14px; height: 14px; background: var(--accent); border: 2px solid #fff; border-radius: 50%; }
+  #poignee { position: absolute; right: -7px; bottom: -7px; width: 12px; height: 12px; background: var(--accent); border: 2px solid #fff; border-radius: 3px; }
+  input[type=number] { width: 84px; padding: 6px 8px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--bord); border-radius: 6px; }
+  .barre .sep { flex: 1; }
+  #cadre { position: absolute; border: 2px dashed #ff3b30; background: #ff3b3022; display: none; pointer-events: none; }
+  .barre { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; color: var(--discret); font-size: 14px; }
+  #vide { padding: 60px 0; text-align: center; color: var(--discret); line-height: 1.5; }
+  #resultats { list-style: none; margin: 12px 0 0; padding: 0; }
+  #resultats li { padding: 4px 0; }
+  #resultats a { color: var(--accent); }
+  #message { margin-top: 10px; font-size: 14px; color: #d92d20; }
+  .confidentialite { font-size: 13px; color: var(--discret); margin-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Filigrane de documents</h1>
+  <p class="sous-titre">Protège la copie d’une pièce avant envoi ou publication. Tout se passe dans votre navigateur : aucun fichier n’est envoyé.</p>
+
+  <div class="grille">
+    <div>
+      <section class="carte">
+        <h2>1. Fichiers</h2>
+        <div id="depot">Déposez vos fichiers ici<br><small>images ou PDF — ou cliquez pour choisir</small></div>
+        <input id="entree" type="file" multiple accept="image/*,.pdf,application/pdf" hidden>
+        <ul id="fichiers"></ul>
+      </section>
+
+      <section class="carte">
+        <h2>2. Filigrane</h2>
+        <label>Destinataire
+          <input id="destinataire" type="text" placeholder="Poney club des Ulis" autocomplete="off">
+        </label>
+        <label>Motif
+          <input id="motif" type="text" placeholder="publication sur le site web" autocomplete="off">
+        </label>
+        <label>Date
+          <input id="date" type="date">
+        </label>
+        <label><span class="rang"><span>Opacité</span><small id="v-opacite"></small></span>
+          <input id="opacite" type="range" min="30" max="255" value="115">
+        </label>
+      </section>
+
+      <section class="carte">
+        <h2>3. Sortie</h2>
+        <label>Format
+          <select id="format">
+            <option value="jpg">JPG</option>
+            <option value="png">PNG</option>
+            <option value="webp">WEBP</option>
+            <option value="pdf">PDF</option>
+          </select>
+        </label>
+        <label id="ligne-qualite"><span class="rang"><span>Qualité</span><small id="v-qualite"></small></span>
+          <input id="qualite" type="range" min="30" max="95" value="70">
+        </label>
+        <label><span class="rang"><span>Largeur max</span><small id="v-largeur"></small></span>
+          <input id="largeur" type="range" min="600" max="3000" step="100" value="1600">
+        </label>
+        <button id="generer" class="principal" disabled>Générer</button>
+        <div id="message"></div>
+        <ul id="resultats"></ul>
+        <div class="barre" id="barre-tout" hidden><button id="tout">Tout télécharger (.zip)</button></div>
+        <p class="confidentialite">Les métadonnées (EXIF, etc.) sont supprimées d’office : l’image est redessinée pixel par pixel.</p>
+      </section>
+    </div>
+
+    <section class="carte">
+      <h2>Aperçu</h2>
+      <div id="vide">Ajoutez un fichier pour voir l’aperçu.</div>
+      <div id="scene" hidden>
+        <canvas id="apercu"></canvas>
+        <div id="selection"><div id="tige"></div><div id="poignee-rot"></div><div id="poignee"></div></div>
+        <div id="cadre"></div>
+      </div>
+      <div class="barre" id="barre-rotation" hidden>
+        <span>Orientation :</span>
+        <button id="rot-g" title="Tourner de 90° vers la gauche">⟲ 90°</button>
+        <button id="rot-d" title="Tourner de 90° vers la droite">⟳ 90°</button>
+        <input id="angle-img" type="number" step="0.5" value="0" aria-label="Angle en degrés"> °
+        <button id="rot-0">Remettre à 0</button>
+      </div>
+      <div class="barre" id="barre-masque" hidden>
+        <span>Tracez un rectangle pour masquer une zone. Cliquez dessus pour la déplacer, tirez son coin pour la redimensionner, la poignée ronde pour la faire tourner.</span>
+        <span class="sep"></span>
+        <span>Angle de la zone :</span>
+        <input id="angle-zone" type="number" step="0.5" value="0" disabled aria-label="Angle de la zone en degrés"> °
+        <button id="suppr" disabled>Supprimer la zone</button>
+        <button id="effacer">Tout effacer</button>
+        <span id="nb-masques"></span>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const ANGLE = 30;
+const POLICE = 'Arial, Helvetica, sans-serif';
+const TYPES = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+const etat = { fichiers: [], sel: -1, masqueSel: -1 };
+
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+function creerCanvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return c;
+}
+
+/* ---------- chargement des fichiers ---------- */
+
+async function lirePages(fichier) {
+  if (fichier.type === 'application/pdf' || /\.pdf$/i.test(fichier.name)) {
+    if (!window.pdfjsLib) throw new Error('lecteur PDF indisponible (connexion nécessaire)');
+    const pdf = await pdfjsLib.getDocument({ data: await fichier.arrayBuffer() }).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const vp = page.getViewport({ scale: 150 / 72 });
+      const c = creerCanvas(Math.round(vp.width), Math.round(vp.height));
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      pages.push(c);
+    }
+    return pages;
+  }
+  const bmp = await createImageBitmap(fichier);
+  const c = creerCanvas(bmp.width, bmp.height);
+  c.getContext('2d').drawImage(bmp, 0, 0);
+  return [c];
+}
+
+async function ajouter(liste) {
+  $('#message').textContent = '';
+  for (const f of liste) {
+    try {
+      const pages = await lirePages(f);
+      etat.fichiers.push({ nom: f.name.replace(/\.[^.]+$/, ''), pages, masques: [], angle: 0, cache: null });
+    } catch (e) {
+      $('#message').textContent = `Impossible de lire « ${f.name} » : ${e.message}`;
+    }
+  }
+  if (etat.sel < 0 && etat.fichiers.length) etat.sel = 0;
+  majListe();
+  apercu();
+}
+
+function majListe() {
+  const ul = $('#fichiers');
+  ul.innerHTML = '';
+  etat.fichiers.forEach((f, i) => {
+    const li = document.createElement('li');
+    li.className = i === etat.sel ? 'actif' : '';
+    li.innerHTML = '<span class="nom"></span><span class="info"></span><button title="Retirer">✕</button>';
+    li.querySelector('.nom').textContent = f.nom;
+    li.querySelector('.info').textContent = f.pages.length > 1 ? `${f.pages.length} p.` : '';
+    li.addEventListener('click', () => { etat.sel = i; etat.masqueSel = -1; majListe(); apercu(); });
+    li.querySelector('button').addEventListener('click', (e) => {
+      e.stopPropagation();
+      etat.fichiers.splice(i, 1);
+      etat.sel = Math.min(etat.sel, etat.fichiers.length - 1);
+      etat.masqueSel = -1;
+      majListe(); apercu();
+    });
+    ul.appendChild(li);
+  });
+  $('#generer').disabled = !etat.fichiers.length;
+}
+
+/* ---------- filigrane ---------- */
+
+function onduler(calque, amplitude, longueurOnde, bande = 2) {
+  const sortie = creerCanvas(calque.width, calque.height);
+  const ctx = sortie.getContext('2d');
+  for (let x = 0; x < calque.width; x += bande) {
+    const dy = Math.round(amplitude * Math.sin(2 * Math.PI * x / longueurOnde));
+    ctx.drawImage(calque, x, 0, bande, calque.height, x, dy, bande, calque.height);
+  }
+  return sortie;
+}
+
+function filigraner(ctx, w, h, texte, opacite) {
+  const taille = Math.max(10, Math.floor(Math.min(w, h) / 40));
+  const mesure = creerCanvas(1, 1).getContext('2d');
+  mesure.font = `${taille}px ${POLICE}`;
+  const pasLigne = Math.floor(taille * 2.2);
+  const pasTexte = Math.ceil(mesure.measureText(texte).width) + taille * 2;
+
+  // grand calque droit couvert de lignes décalées, ondulé puis tourné d'un bloc
+  const cote = Math.floor(Math.hypot(w, h)) + 2 * pasTexte;
+  const calque = creerCanvas(cote, cote);
+  const c = calque.getContext('2d');
+  c.font = `${taille}px ${POLICE}`;
+  c.textBaseline = 'top';
+  c.lineJoin = 'round';
+  c.lineWidth = 2;
+  c.strokeStyle = `rgba(255,255,255,${opacite / 2 / 255})`;
+  c.fillStyle = `rgba(128,128,128,${opacite / 255})`;
+  for (let n = 0, y = 0; y < cote; n++, y += pasLigne) {
+    const depart = (((-Math.floor(n * pasTexte / 3)) % pasTexte) + pasTexte) % pasTexte - pasTexte;
+    for (let x = depart; x < cote; x += pasTexte) {
+      c.strokeText(texte, x, y);
+      c.fillText(texte, x, y);
+    }
+  }
+  const ondule = onduler(calque, taille * 0.7, taille * 12);
+  ctx.save();
+  ctx.translate(w / 2, h / 2);
+  ctx.rotate(-ANGLE * Math.PI / 180);
+  ctx.drawImage(ondule, -cote / 2, -cote / 2);
+  ctx.restore();
+}
+
+function composer(source, masques, largeurCible, texte, opacite) {
+  const k = source.width > largeurCible ? largeurCible / source.width : 1;
+  const w = Math.round(source.width * k), h = Math.round(source.height * k);
+  const c = creerCanvas(w, h);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(source, 0, 0, w, h);
+  ctx.fillStyle = '#000';
+  for (const m of masques) {
+    ctx.save();
+    ctx.translate((m.x + m.w / 2) * w, (m.y + m.h / 2) * h);
+    ctx.rotate((m.a || 0) * Math.PI / 180);
+    ctx.fillRect(-m.w * w / 2, -m.h * h / 2, m.w * w, m.h * h);
+    ctx.restore();
+  }
+  filigraner(ctx, w, h, texte, opacite);
+  return c;
+}
+
+/* ---------- réglages ---------- */
+
+function formatDate(iso) {
+  const [a, m, j] = iso.split('-');
+  return `${j}/${m}/${a}`;
+}
+
+function texteFiligrane() {
+  const d = $('#destinataire').value.trim() || '…';
+  const m = $('#motif').value.trim() || '…';
+  return `Destiné à ${d} – pour ${m} – le ${formatDate($('#date').value)}`;
+}
+
+function majValeurs() {
+  $('#v-opacite').textContent = $('#opacite').value;
+  $('#v-qualite').textContent = $('#qualite').value;
+  $('#v-largeur').textContent = `${$('#largeur').value} px`;
+  $('#ligne-qualite').hidden = !['jpg', 'webp'].includes($('#format').value);
+}
+
+/* ---------- aperçu et masques ---------- */
+
+let minuterie;
+function apercu() {
+  clearTimeout(minuterie);
+  minuterie = setTimeout(dessinerApercu, 80);
+}
+
+function tourner(source, degres) {
+  const r = degres * Math.PI / 180;
+  const cos = Math.abs(Math.cos(r)), sin = Math.abs(Math.sin(r));
+  const w = Math.round(source.width * cos + source.height * sin);
+  const h = Math.round(source.width * sin + source.height * cos);
+  const c = creerCanvas(w, h);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.translate(w / 2, h / 2);
+  ctx.rotate(r);
+  ctx.drawImage(source, -source.width / 2, -source.height / 2);
+  return c;
+}
+
+// pages du fichier après correction d'orientation (mises en cache tant que l'angle ne change pas)
+function pagesTournees(f) {
+  if (!f.angle) return f.pages;
+  if (!f.cache || f.cache.angle !== f.angle) {
+    f.cache = { angle: f.angle, pages: f.pages.map((p) => tourner(p, f.angle)) };
+  }
+  return f.cache.pages;
+}
+
+// ramène un angle dans ]-180 ; 180]
+function normaliser(degres) {
+  const v = Number.isFinite(degres) ? degres : 0;
+  const a = ((v % 360) + 360) % 360;
+  return a > 180 ? a - 360 : a;
+}
+
+function reglerAngle(f, degres) {
+  f.angle = normaliser(degres);
+  $('#angle-img').value = f.angle;
+  apercu();
+}
+
+function majSelection() {
+  const f = etat.fichiers[etat.sel];
+  const m = f && f.masques[etat.masqueSel];
+  const el = $('#selection');
+  el.style.display = m ? 'block' : 'none';
+  $('#suppr').disabled = !m;
+  $('#angle-zone').disabled = !m;
+  if (!m) { $('#angle-zone').value = 0; return; }
+  Object.assign(el.style, {
+    left: m.x * 100 + '%', top: m.y * 100 + '%', width: m.w * 100 + '%', height: m.h * 100 + '%',
+    transform: `rotate(${m.a || 0}deg)`,
+  });
+  if (document.activeElement !== $('#angle-zone')) $('#angle-zone').value = Math.round((m.a || 0) * 10) / 10;
+}
+
+function dessinerApercu() {
+  const f = etat.fichiers[etat.sel];
+  $('#vide').hidden = !!f;
+  $('#scene').hidden = !f;
+  $('#barre-masque').hidden = !f;
+  $('#barre-rotation').hidden = !f;
+  if (!f) return;
+  if (etat.masqueSel >= f.masques.length) etat.masqueSel = -1;
+  if (document.activeElement !== $('#angle-img')) $('#angle-img').value = f.angle;
+  const largeur = Math.min(+$('#largeur').value, 900);
+  const c = composer(pagesTournees(f)[0], f.masques, largeur, texteFiligrane(), +$('#opacite').value);
+  const cible = $('#apercu');
+  cible.width = c.width; cible.height = c.height;
+  cible.getContext('2d').drawImage(c, 0, 0);
+  $('#nb-masques').textContent = f.masques.length ? `${f.masques.length} zone(s)` : '';
+  majSelection();
+}
+
+(function brancherMasques() {
+  const scene = $('#scene'), cadre = $('#cadre');
+  const POIGNEE = 14; // rayon de capture des poignées, en px
+  const RAD = Math.PI / 180;
+  let geste = null; // { mode: 'tracer' | 'deplacer' | 'redim' | 'tourner', ... }
+  let planifie = false;
+  const redessiner = () => {
+    if (planifie) return;
+    planifie = true;
+    requestAnimationFrame(() => { planifie = false; dessinerApercu(); });
+  };
+  const fichier = () => etat.fichiers[etat.sel];
+
+  // position du pointeur en px dans l'aperçu (W, H = taille affichée)
+  const pos = (e) => {
+    const r = scene.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top, W: r.width, H: r.height };
+  };
+  const fr = (p) => ({ x: Math.min(1, Math.max(0, p.x / p.W)), y: Math.min(1, Math.max(0, p.y / p.H)) });
+
+  // géométrie d'une zone en px : centre, demi-dimensions, angle
+  const geom = (m, p) => ({ cx: (m.x + m.w / 2) * p.W, cy: (m.y + m.h / 2) * p.H, hw: m.w * p.W / 2, hh: m.h * p.H / 2, a: (m.a || 0) * RAD });
+  // point de l'écran -> repère de la zone (origine au centre, axes tournés avec elle)
+  const local = (g, p) => {
+    const dx = p.x - g.cx, dy = p.y - g.cy, c = Math.cos(g.a), s = Math.sin(g.a);
+    return { x: dx * c + dy * s, y: -dx * s + dy * c };
+  };
+  // repère de la zone -> écran
+  const monde = (g, l) => {
+    const c = Math.cos(g.a), s = Math.sin(g.a);
+    return { x: g.cx + l.x * c - l.y * s, y: g.cy + l.x * s + l.y * c };
+  };
+  const dedans = (m, p) => { const g = geom(m, p), l = local(g, p); return Math.abs(l.x) <= g.hw && Math.abs(l.y) <= g.hh; };
+  const surPoignee = (m, p) => { const g = geom(m, p), l = local(g, p); return Math.hypot(l.x - g.hw, l.y - g.hh) <= POIGNEE; };
+  const surRotation = (m, p) => { const g = geom(m, p), l = local(g, p); return Math.hypot(l.x, l.y + g.hh + 31) <= POIGNEE; };
+  const rect = (a, b) => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y) });
+  const ecrire = (m, cx, cy, hw, hh, p) => {
+    m.w = (hw * 2) / p.W; m.h = (hh * 2) / p.H;
+    m.x = cx / p.W - m.w / 2; m.y = cy / p.H - m.h / 2;
+  };
+
+  scene.addEventListener('pointerdown', (e) => {
+    const f = fichier();
+    if (!f) return;
+    const p = pos(e);
+    scene.setPointerCapture(e.pointerId);
+    const courant = f.masques[etat.masqueSel];
+    if (courant && surRotation(courant, p)) {
+      geste = { mode: 'tourner' };
+    } else if (courant && surPoignee(courant, p)) {
+      // le coin haut-gauche (dans le repère de la zone) reste fixe pendant le redimensionnement
+      const g = geom(courant, p);
+      geste = { mode: 'redim', fixe: monde(g, { x: -g.hw, y: -g.hh }) };
+    } else {
+      let touche = -1;
+      for (let i = f.masques.length - 1; i >= 0; i--) if (dedans(f.masques[i], p)) { touche = i; break; }
+      etat.masqueSel = touche;
+      if (touche >= 0) {
+        const g = geom(f.masques[touche], p);
+        geste = { mode: 'deplacer', dx: p.x - g.cx, dy: p.y - g.cy };
+      } else {
+        geste = { mode: 'tracer', debut: fr(p) };
+        cadre.style.display = 'block';
+      }
+    }
+    majSelection();
+  });
+
+  scene.addEventListener('pointermove', (e) => {
+    const f = fichier();
+    if (!f) return;
+    const p = pos(e);
+    if (!geste) {
+      const courant = f.masques[etat.masqueSel];
+      scene.style.cursor = courant && surRotation(courant, p) ? 'grab'
+        : courant && surPoignee(courant, p) ? 'nwse-resize'
+        : f.masques.some((m) => dedans(m, p)) ? 'move' : 'crosshair';
+      return;
+    }
+    const m = f.masques[etat.masqueSel];
+    if (geste.mode === 'tracer') {
+      const t = rect(geste.debut, fr(p));
+      Object.assign(cadre.style, { left: t.x * 100 + '%', top: t.y * 100 + '%', width: t.w * 100 + '%', height: t.h * 100 + '%' });
+      return;
+    }
+    const g = geom(m, p);
+    if (geste.mode === 'deplacer') {
+      const cx = Math.min(p.W, Math.max(0, p.x - geste.dx));
+      const cy = Math.min(p.H, Math.max(0, p.y - geste.dy));
+      ecrire(m, cx, cy, g.hw, g.hh, p);
+    } else if (geste.mode === 'redim') {
+      const l = local({ ...g, cx: geste.fixe.x, cy: geste.fixe.y }, p); // pointeur vu depuis le coin fixe
+      const nw = Math.max(8, l.x), nh = Math.max(8, l.y);
+      const c = monde({ ...g, cx: geste.fixe.x, cy: geste.fixe.y }, { x: nw / 2, y: nh / 2 });
+      ecrire(m, c.x, c.y, nw / 2, nh / 2, p);
+    } else {
+      let a = Math.atan2(p.y - g.cy, p.x - g.cx) / RAD + 90; // la poignée est au-dessus de la zone
+      if (e.shiftKey) a = Math.round(a / 15) * 15;
+      m.a = normaliser(a);
+    }
+    majSelection(); redessiner();
+  });
+
+  scene.addEventListener('pointerup', (e) => {
+    const f = fichier();
+    if (!geste || !f) return;
+    if (geste.mode === 'tracer') {
+      const t = rect(geste.debut, fr(pos(e)));
+      cadre.style.display = 'none';
+      if (t.w > 0.005 && t.h > 0.005) {
+        f.masques.push({ x: t.x, y: t.y, w: t.w, h: t.h, a: 0 });
+        etat.masqueSel = f.masques.length - 1;
+      }
+    }
+    geste = null;
+    dessinerApercu();
+  });
+
+  const supprimer = () => {
+    const f = fichier();
+    if (!f || etat.masqueSel < 0) return;
+    f.masques.splice(etat.masqueSel, 1);
+    etat.masqueSel = -1;
+    dessinerApercu();
+  };
+  $('#suppr').addEventListener('click', supprimer);
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) {
+      e.preventDefault();
+      supprimer();
+    }
+  });
+  $('#effacer').addEventListener('click', () => {
+    const f = fichier();
+    if (f) f.masques = [];
+    etat.masqueSel = -1;
+    dessinerApercu();
+  });
+
+  // angle de la zone sélectionnée
+  $('#angle-zone').addEventListener('input', (e) => {
+    const m = fichier()?.masques[etat.masqueSel];
+    if (!m || e.target.value === '' || e.target.value === '-') return;
+    m.a = parseFloat(e.target.value) || 0;
+    majSelection(); redessiner();
+  });
+  $('#angle-zone').addEventListener('change', () => {
+    const m = fichier()?.masques[etat.masqueSel];
+    if (m) m.a = normaliser(m.a);
+    dessinerApercu();
+  });
+
+  // orientation
+  $('#rot-g').addEventListener('click', () => fichier() && reglerAngle(fichier(), fichier().angle - 90));
+  $('#rot-d').addEventListener('click', () => fichier() && reglerAngle(fichier(), fichier().angle + 90));
+  $('#rot-0').addEventListener('click', () => fichier() && reglerAngle(fichier(), 0));
+  $('#angle-img').addEventListener('input', (e) => {
+    const f = fichier();
+    if (!f || e.target.value === '' || e.target.value === '-') return;
+    f.angle = parseFloat(e.target.value) || 0;
+    apercu();
+  });
+  $('#angle-img').addEventListener('change', () => fichier() && reglerAngle(fichier(), fichier().angle));
+})();
+
+/* ---------- génération ---------- */
+
+let sortiesCourantes = [];
+
+const versBlob =(canvas, type, qualite) => new Promise((ok) => canvas.toBlob(ok, type, qualite));
+
+async function genererPdf(canvases, qualite) {
+  const { jsPDF } = window.jspdf;
+  let pdf = null;
+  for (const c of canvases) {
+    const orientation = c.width >= c.height ? 'l' : 'p';
+    if (!pdf) pdf = new jsPDF({ unit: 'px', format: [c.width, c.height], orientation, hotfixes: ['px_scaling'] });
+    else pdf.addPage([c.width, c.height], orientation);
+    pdf.addImage(c.toDataURL('image/jpeg', qualite), 'JPEG', 0, 0, c.width, c.height);
+  }
+  return pdf.output('blob');
+}
+
+async function generer() {
+  const message = $('#message');
+  message.textContent = '';
+  if (!$('#destinataire').value.trim() || !$('#motif').value.trim()) {
+    message.textContent = 'Indiquez le destinataire et le motif.';
+    return;
+  }
+  const bouton = $('#generer');
+  bouton.disabled = true;
+  bouton.textContent = 'Traitement…';
+  const ul = $('#resultats');
+  ul.querySelectorAll('a').forEach((a) => URL.revokeObjectURL(a.href));
+  ul.innerHTML = '';
+  sortiesCourantes = [];
+  const format = $('#format').value;
+  const qualite = +$('#qualite').value / 100;
+  const texte = texteFiligrane();
+  try {
+    for (const f of etat.fichiers) {
+      const pages = pagesTournees(f).map((p) => composer(p, f.masques, +$('#largeur').value, texte, +$('#opacite').value));
+      const sorties = [];
+      if (format === 'pdf') {
+        sorties.push({ nom: `${f.nom}_protege.pdf`, blob: await genererPdf(pages, qualite) });
+      } else {
+        for (let i = 0; i < pages.length; i++) {
+          const suffixe = pages.length > 1 ? `_p${i + 1}` : '';
+          sorties.push({ nom: `${f.nom}_protege${suffixe}.${format}`, blob: await versBlob(pages[i], TYPES[format], qualite) });
+        }
+      }
+      for (const s of sorties) {
+        sortiesCourantes.push(s);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(s.blob);
+        a.download = s.nom;
+        a.textContent = `${s.nom} (${Math.round(s.blob.size / 1024)} Ko)`;
+        const li = document.createElement('li');
+        li.appendChild(a);
+        ul.appendChild(li);
+      }
+    }
+    $('#barre-tout').hidden = ul.children.length < 2;
+  } catch (e) {
+    message.textContent = `Erreur : ${e.message}`;
+  }
+  bouton.disabled = false;
+  bouton.textContent = 'Générer';
+}
+
+/* ---------- branchements ---------- */
+
+const depot = $('#depot'), entree = $('#entree');
+depot.addEventListener('click', () => entree.click());
+entree.addEventListener('change', () => { ajouter([...entree.files]); entree.value = ''; });
+['dragenter', 'dragover'].forEach((t) => depot.addEventListener(t, (e) => { e.preventDefault(); depot.classList.add('survol'); }));
+['dragleave', 'drop'].forEach((t) => depot.addEventListener(t, (e) => { e.preventDefault(); depot.classList.remove('survol'); }));
+depot.addEventListener('drop', (e) => ajouter([...e.dataTransfer.files]));
+
+for (const id of ['destinataire', 'motif', 'date', 'opacite', 'largeur']) {
+  $('#' + id).addEventListener('input', () => { majValeurs(); apercu(); });
+}
+for (const id of ['qualite', 'format']) $('#' + id).addEventListener('input', majValeurs);
+$('#generer').addEventListener('click', generer);
+$('#tout').addEventListener('click', async () => {
+  if (!window.JSZip) { $('#message').textContent = 'ZIP indisponible (connexion nécessaire) : téléchargez les fichiers un par un.'; return; }
+  const zip = new JSZip();
+  for (const s of sortiesCourantes) zip.file(s.nom, s.blob);
+  // les images sont déjà compressées : on stocke sans recompresser
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'documents_proteges.zip';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+});
+
+$('#date').value = new Date().toISOString().slice(0, 10);
+majValeurs();
+</script>
+</body>
+</html>
