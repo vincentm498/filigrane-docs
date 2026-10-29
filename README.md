@@ -1,5 +1,7 @@
 # Filigrane de documents
 
+**[Ouvrir la page en ligne](https://vincentm498.github.io/filigrane-docs/)** — rien à installer, tout se passe dans votre navigateur.
+
 Protège la copie d'un document (pièce d'identité, diplôme, etc.) avant envoi ou publication.
 
 Pour chaque fichier, l'outil :
@@ -142,3 +144,9 @@ dans la page web : l'aperçu l'affiche immédiatement.
   charger pdf.js.
 - **`ModuleNotFoundError: PIL` ou `pymupdf` (script)** : lancez le script avec
   `.venv/bin/python`, pas avec le Python du système.
+
+---
+
+## Licence
+
+[MIT](LICENSE)
